@@ -2,6 +2,8 @@ import DashBoard from "./pages/Dashboard";
 
 export default function Home() {
   return (
-    <DashBoard/>
+    <div className="">
+      Welcome to skyfarm innovations
+    </div>
   );
 }

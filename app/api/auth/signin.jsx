@@ -1,22 +1,14 @@
-// pages/signup.js
+// pages/auth/signin.js
+import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 
-export default function SignUp() {
+export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const res = await fetch('/api/signup', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    if (res.ok) {
-      console.log('User registered');
-    }
+    await signIn('credentials', { redirect: false, email, password });
   };
 
   return (
@@ -33,7 +25,7 @@ export default function SignUp() {
         onChange={(e) => setPassword(e.target.value)} 
         placeholder="Password" 
       />
-      <button type="submit">Sign Up</button>
+      <button type="submit">Sign In</button>
     </form>
   );
 }
