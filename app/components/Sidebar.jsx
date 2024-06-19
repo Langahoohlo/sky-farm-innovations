@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { SignOutButton } from '@clerk/nextjs';
+import { SignedIn, SignOutButton, UserButton, UserProfile } from '@clerk/nextjs';
 import { auth, currentUser } from '@clerk/nextjs/server';
 
-async function Sidebar () {
-  const user = await currentUser();
+function Sidebar () {
+  // const user = await currentUser();
 
-  if(!user){
-    return new Response("Unauthorized", { status: 401 });
-  }
+  // if(!user){
+    // return new Response("Unauthorized", { status: 401 });
+  // }
 
   return (
     <div className="bg-gray-800 text-white w-60 h-screen p-4">
@@ -35,14 +35,12 @@ async function Sidebar () {
           <span>🔍</span><span>Search</span>
         </Link>
       </nav>
-      {
-        user ? (
-          <div className="absolute bottom-4 left-4">
-            <p>{user.username}</p>
-            <SignOutButton />
-          </div>
-        ) : null
-      }
+      <div className='absolute bottom-4 left-4 border bg-white'>
+        <SignedIn>
+          <UserButton showName />
+        </SignedIn>
+      </div>
+      
     </div>
   );
 };

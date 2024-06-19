@@ -1,4 +1,4 @@
-import DashBoard from "../pages/Dashboard"
+import DashBoard from "./pages/Dashboard"
 
 
 function page() {

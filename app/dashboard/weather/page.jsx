@@ -1,11 +1,14 @@
 import React from 'react'
-import Weather from '../pages/Weather'
-import Mapping from '../mapping/mapping'
+import Sidebar from '../../components/Sidebar';
 
 export default function page() {
   return (
-    <div>
-      <Weather />
+    <div className='flex'>
+      <Sidebar/>
+      <div className="p-4 flex-1">
+        <h1 className="text-2xl font-bold mb-4">Weather</h1>
+        <p>This is the weather page.</p>
+      </div>
     </div>
   )
 }
