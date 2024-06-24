@@ -5,6 +5,16 @@ from datetime import datetime
 import cv2
 import threading
 
+# Import the InferencePipeline object
+from inference import InferencePipeline
+# Import the built in render_boxes sink for visualizing results
+from inference.core.interfaces.stream.sinks import render_boxes
+
+import os
+from dotenv import load_dotenv
+
+roboflow_api_key = os.getenv('ROBOFLOW_API_KEY')
+
 # Initialize Flask app and SQLAlchemy
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///detections.db'
@@ -25,7 +35,7 @@ class Detection(db.Model):
     class_name = db.Column(db.String(50), nullable=False)
     class_id = db.Column(db.Integer, nullable=False)
     detection_id = db.Column(db.String(50), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now)
 
 # Initialize the database
 with app.app_context():
@@ -34,34 +44,90 @@ with app.app_context():
 # Initialize the inference client
 CLIENT = InferenceHTTPClient(
     api_url="https://detect.roboflow.com",
-    api_key="pcwYMWd7eJ8hHyBeVtyU"
+    api_key=roboflow_api_key
 )
 
-@app.route('/infer_and_save', methods=['POST'])
+@app.route('/infer_and_save', methods=['GET'])
 def infer_and_save():
-    image_url = request.json['image_url']
+    image_url = 'assets/images/p4.jpeg'
     result = CLIENT.infer(image_url, model_id="potato-eruvaka/3")
     
     if result and 'predictions' in result:
-        prediction = result['predictions'][0]
-        detection = Detection(
-            time=result.get('time', 0),
-            image_width=result['image']['width'],
-            image_height=result['image']['height'],
-            x=prediction['x'],
-            y=prediction['y'],
-            width=prediction['width'],
-            height=prediction['height'],
-            confidence=prediction['confidence'],
-            class_name=prediction['class'],
-            class_id=prediction['class_id'],
-            detection_id=prediction['detection_id']
-        )
-        db.session.add(detection)
+        detections = []
+        for prediction in result['predictions']:
+            detection = Detection(
+                time=result.get('time', 0),
+                image_width=result['image']['width'],
+                image_height=result['image']['height'],
+                x=prediction['x'],
+                y=prediction['y'],
+                width=prediction['width'],
+                height=prediction['height'],
+                confidence=prediction['confidence'],
+                class_name=prediction['class'],
+                class_id=prediction['class_id'],
+                detection_id=prediction['detection_id']
+            )
+            db.session.add(detection)
+            detections.append(detection)
+        
         db.session.commit()
-        return jsonify({'message': 'Detection added successfully', 'detection': detection.id}), 201
+        
+        return jsonify({'message': 'Detections added successfully', 'detection_ids': [d.id for d in detections]}), 201
     
     return jsonify({'message': 'No predictions found'}), 400
+
+from uuid import uuid4
+
+@app.route('/infer_video', methods=['GET'])
+def infer_video():
+    video_path = 'assets/videos/potato_digging.mp4'
+    cap = cv2.VideoCapture(video_path)
+    all_detections = []
+
+    if not cap.isOpened():
+        return jsonify({'message': 'Error opening video file'}), 400
+
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Generate a unique filename for each frame
+        filename = f"{uuid4()}.jpg"
+        filepath = os.path.join('/tmp', filename)
+
+        # Save the frame as an image file
+        cv2.imwrite(filepath, frame)
+
+        # Perform inference using the saved image file
+        result = CLIENT.infer(filepath, model_id="potato-eruvaka/3")
+
+        if result and 'predictions' in result:
+            for prediction in result['predictions']:
+                detection = Detection(
+                    time=result.get('time', 0),
+                    image_width=result['image']['width'],
+                    image_height=result['image']['height'],
+                    x=prediction['x'],
+                    y=prediction['y'],
+                    width=prediction['width'],
+                    height=prediction['height'],
+                    confidence=prediction['confidence'],
+                    class_name=prediction['class'],
+                    class_id=prediction['class_id'],
+                    detection_id=prediction['detection_id']
+                )
+                all_detections.append(detection)
+
+        # Clean up the local image file after inference
+        os.remove(filepath)
+
+    cap.release()
+    db.session.add_all(all_detections)
+    db.session.commit()
+
+    return jsonify({'message': 'Detections added successfully', 'detection_ids': [d.id for d in all_detections]}), 201
 
 @app.route('/detections', methods=['GET'])
 def get_detections():
